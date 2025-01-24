@@ -1,0 +1,60 @@
+// Load MODIS Land Surface Temperature data (MOD11A1: Terra LST)
+var dataset = ee.ImageCollection("MODIS/061/MOD11A1")
+  .filterDate('2024-01-01', '2025-01-01') // Adjust date range as needed
+  .select('LST_Night_1km'); // Select nighttime LST band
+
+// Define points of interest
+var points = ee.FeatureCollection([
+  //ee.Feature(ee.Geometry.Point([78.9639, 23.1815]), {name: 'Point 1'}),
+  //ee.Feature(ee.Geometry.Point([77.2090, 28.6139]), {name: 'Point 2'}),
+  ee.Feature(ee.Geometry.Point([88.3639, 22.5726]), {name: 'Point 3'})
+]);
+
+// Function to extract LST at each point in Celsius
+var extractLST = function(point) {
+  var lstTimeSeries = dataset.map(function(image) {
+    // Reduce region to get LST value
+    var lstValueKelvin = image.reduceRegion({
+      reducer: ee.Reducer.mean(),
+      geometry: point.geometry(),
+      scale: 1000
+    }).get('LST_Night_1km');
+    
+    // Check if LST value is null
+    var lstValueCelsius = ee.Algorithms.If(
+      lstValueKelvin, 
+      ee.Number(lstValueKelvin).multiply(0.02).subtract(273.15), 
+      null // Assign null if no data is available
+    );
+    
+    return ee.Feature(null, {
+      'date': image.date().format('YYYY-MM-dd'),
+      'LST_Celsius': lstValueCelsius,
+      'point': point.get('name')
+    });
+  });
+  
+  return lstTimeSeries;
+};
+
+// Flatten the results for all points
+var lstResults = points.map(function(point) {
+  return extractLST(point);
+}).flatten();
+
+// Filter out null values
+var validResults = lstResults.filter(ee.Filter.notNull(['LST_Celsius']));
+
+// Print valid results to console
+print('Valid Nighttime Temperature Time Series (Celsius)', validResults);
+
+// Visualize the points on the map
+Map.addLayer(points, {color: 'red'}, 'Points of Interest');
+Map.centerObject(points, 6);
+
+// Separate download/export script
+Export.table.toDrive({
+  collection: validResults,
+  description: 'NighttimeTemperature_Celsius_Valid',
+  fileFormat: 'CSV'
+});
