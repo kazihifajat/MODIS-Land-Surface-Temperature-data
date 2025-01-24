@@ -33,10 +33,10 @@ var extractLST = function(point) {
       'point': point.get('name')
     });
   });
-  
+
   return lstTimeSeries;
 };
-
+//Flatten
 // Flatten the results for all points
 var lstResults = points.map(function(point) {
   return extractLST(point);
