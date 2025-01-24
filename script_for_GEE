@@ -36,7 +36,7 @@ var extractLST = function(point) {
 
   return lstTimeSeries;
 };
-//Flatten
+
 // Flatten the results for all points
 var lstResults = points.map(function(point) {
   return extractLST(point);
